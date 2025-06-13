@@ -204,4 +204,89 @@ with st.container():
             favc = st.selectbox('Sering mengonsumsi makanan tinggi kalori?', options=list(maps['FAVC'].keys()), help='Seberapa sering Anda makan makanan tinggi kalori?')
             fcvc = st.slider('Konsumsi Sayur (porsi/hari)', min_value=0.0, max_value=5.0, value=2.0, step=0.5, help='Berapa porsi sayuran yang Anda makan per hari?')
         with c2:
-            cp = st.slider('Jumlah Makan Utama/hari', min_value=1, max_value=6, value=3, step=1, help='Berap
+            cp = st.slider('Jumlah Makan Utama/hari', min_value=1, max_value=6, value=3, step=1, help='Berapa kali Anda makan makanan utama dalam sehari?')
+            caec = st.selectbox('Camilan di Luar Jam Makan', options=list(maps['CAEC'].keys()), help='Seberapa sering Anda ngemil di luar jam makan utama?')
+        
+        smoke = st.selectbox('Merokok?', options=list(maps['SMOKE'].keys()), help='Apakah Anda seorang perokok?')
+        calc = st.selectbox('Konsumsi Alkohol', options=list(maps['CALC'].keys()), help='Seberapa sering Anda mengonsumsi alkohol?')
+
+with st.container():
+    st.markdown("<h3><small>Aktivitas & Lainnya</small></h3>", unsafe_allow_html=True)
+    with st.expander('Klik untuk Aktivitas & Lainnya', expanded=False):
+        c1, c2 = st.columns(2)
+        with c1:
+            ch2o = st.slider('Konsumsi Air Putih (liter/hari)', min_value=0.0, max_value=5.0, value=1.5, step=0.1, help='Berapa liter air putih yang Anda minum per hari?')
+            faf = st.slider('Olahraga (kali/minggu)', min_value=0, max_value=7, value=3, step=1, help='Berapa kali Anda berolahraga dalam seminggu?')
+        with c2:
+            tue = st.slider('Waktu Gadget (jam/hari)', min_value=0.0, max_value=15.0, value=5.0, step=0.5, help='Berapa jam Anda menghabiskan waktu di depan gadget/layar per hari?')
+            mtrans = st.selectbox('Moda Transportasi Utama', options=list(maps['MTRANS'].keys()), help='Bagaimana Anda bepergian sehari-hari?')
+        
+        scc = st.selectbox('Mencatat Asupan Kalori?', options=list(maps['SCC'].keys()), help='Apakah Anda memiliki kebiasaan mencatat asupan kalori?')
+
+st.markdown("---") # Garis pemisah sebelum tombol
+predict_button = st.button('🚀 Prediksi Kategori Obesitas Anda')
+
+# --- Logika Prediksi dan Tampilan Hasil ---
+if predict_button:
+    with st.spinner('Menganalisis data dan membuat prediksi...'):
+        try:
+            # Membangun dictionary raw data
+            raw_data = {
+                'Age': age, 'Height': height, 'Weight': weight,
+                'FCVC': fcvc, 'NCP': cp, 'CH2O': ch2o,
+                'FAF': faf, 'TUE': tue,
+                'Gender': gender_map[gender],
+                'family_history_with_overweight': maps['Riwayat Keluarga'][family_history],
+                'FAVC': maps['FAVC'][favc], 'CAEC': maps['CAEC'][caec],
+                'SMOKE': maps['SMOKE'][smoke], 'SCC': maps['SCC'][scc],
+                'CALC': maps['CALC'][calc], 'MTRANS': maps['MTRANS'][mtrans]
+            }
+            df = pd.DataFrame([raw_data])
+
+            # Scaling fitur numerik
+            df[NUM_COLS] = scaler.transform(df[NUM_COLS])
+
+            # One-Hot Encoding untuk fitur kategorikal
+            dummies = pd.get_dummies(df[CAT_COLS], drop_first=True)
+            
+            # Gabungkan kolom numerik dan dummy
+            X_processed = pd.concat([df[NUM_COLS], dummies], axis=1)
+
+            # --- Pastikan Semua Kolom Model Ada dan Urutannya Benar ---
+            # Reindex X_processed untuk memastikan semua kolom yang diharapkan model ada
+            # dan dalam urutan yang benar, mengisi NaN dengan 0 untuk kolom dummy yang tidak ada
+            X_final = X_processed.reindex(columns=MODEL_FEATURES, fill_value=0)
+
+            # --- Debugging: Cek Kolom Sebelum Prediksi ---
+            # st.write("Kolom X_final:", X_final.columns.tolist())
+            # st.write("Data X_final (5 baris pertama):", X_final.head())
+            # st.write("Bentuk X_final:", X_final.shape)
+
+            # Lakukan prediksi
+            prediction = model.predict(X_final)[0]
+            
+            # Tampilkan hasil kesimpulan
+            st.markdown(f"""
+            <div class="stSuccess">
+                Kategori Obesitas Anda: <strong>{CLASS_MAPPING_OBESITY.get(prediction, prediction)}</strong>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.balloons() # Efek balon saat sukses
+
+            st.info("""
+            *Penting: Prediksi ini adalah hasil dari model machine learning berdasarkan data yang Anda berikan. Untuk diagnosis medis yang akurat dan rencana penanganan yang tepat, sangat disarankan untuk berkonsultasi dengan profesional kesehatan.*
+            """)
+
+        except Exception as e:
+            st.error(f"❌ Terjadi kesalahan dalam proses prediksi: {e}")
+            st.warning("Mohon periksa kembali semua data yang Anda masukkan dan pastikan model serta scaler dimuat dengan benar.")
+            # st.exception(e) # Ini bisa digunakan untuk menampilkan traceback lengkap untuk debugging lebih lanjut
+
+# --- Footer Aplikasi ---
+st.markdown("""
+<hr style="border:1px solid #f0f2f6; margin-top: 3rem;">
+<p style="text-align: center; color: #7f8c8d; font-size: 0.8em;">
+    Dibuat dengan ❤️ oleh Rendra Gunawan (A11.2022.14235). <br> Untuk tujuan demonstrasi dan edukasi.
+</p>
+""", unsafe_allow_html=True)
