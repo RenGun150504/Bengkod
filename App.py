@@ -3,7 +3,7 @@ import pandas as pd
 import joblib
 
 try:
-    model = joblib.load('random_forest_obesity_model.pkl')
+    model = joblib.load('model_akhir.pkl')
     scaler = joblib.load('scaler.pkl')
 except FileNotFoundError:
     st.error("File model atau scaler tidak ditemukan. Pastikan file 'random_forest_obesity_model.pkl' dan 'scaler.pkl' ada di direktori yang sama.")
