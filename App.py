@@ -3,7 +3,7 @@ import pandas as pd
 import joblib
 
 # Load model, scaler, and feature columns
-model = joblib.load('random_forest_obesity_model.pkl')
+model = joblib.load('model-akhir.pkl')
 scaler = joblib.load('scaler.pkl')
 
 # Map options for categorical inputs (display -> model value)
