@@ -300,6 +300,6 @@ if predict_button:
 st.markdown("""
 <hr style="border:1px solid #f0f2f6; margin-top: 3rem;">
 <p style="text-align: center; color: #7f8c8d; font-size: 0.8em;">
-    Dibuat dengan ❤️ oleh Rendra Gunawan (A11.2022.14235). <br> Untuk tujuan demonstrasi dan edukasi.
+    Dibuat oleh Rendra Gunawan (A11.2022.14235). <br> Untuk prediksi obesitas.
 </p>
 """, unsafe_allow_html=True)
