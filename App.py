@@ -2,14 +2,14 @@ import streamlit as st
 import pandas as pd
 import joblib
 
-# Load model, scaler, and feature columns
+# Load model, scaler
 @st.cache_resource
 def load_resources():
     model = joblib.load('model_akhir.pkl')
     scaler = joblib.load('scaler.pkl')
     return model, scaler
 
-model, scaler, feature_columns = load_resources()
+model, scaler= load_resources()
 
 # Mapping for categorical inputs
 gender_map = {'Laki-laki': 'Male', 'Perempuan': 'Female'}
@@ -94,7 +94,7 @@ if predict_button:
         df[['Age','Height','Weight','FCVC','NCP','CH2O','FAF','TUE']] = scaler.transform(df[['Age','Height','Weight','FCVC','NCP','CH2O','FAF','TUE']])
         dummies = pd.get_dummies(df[list(maps.keys()) + ['Gender','family_history_with_overweight']], drop_first=True)
         X = pd.concat([df[['Age','Height','Weight','FCVC','NCP','CH2O','FAF','TUE']], dummies], axis=1)
-        X = X.reindex(columns=feature_columns, fill_value=0)
+        X = X.reindex( fill_value=0)
         result = model.predict(X)[0]
 
     st.success(f'Kategori obesitas: **{result}**')
