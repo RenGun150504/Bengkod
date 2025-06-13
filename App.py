@@ -3,7 +3,7 @@ import pandas as pd
 import joblib
 
 # Load model, scaler, and feature columns
-model = joblib.load('model-akhir.pkl')
+model = joblib.load('model_akhir.pkl')
 scaler = joblib.load('scaler.pkl')
 
 # Map options for categorical inputs (display -> model value)
