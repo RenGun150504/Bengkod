@@ -148,4 +148,98 @@ with st.expander('**2. Kebiasaan Makan & Gaya Hidup** 🍎🍜', expanded=False)
         cp = st.slider('Jumlah Makan Utama/hari', min_value=1, max_value=6, value=3, step=1, help='Berapa kali Anda makan makanan utama dalam sehari?')
         caec = st.selectbox('Camilan di Luar Jam Makan', options=list(maps['CAEC'].keys()), help='Seberapa sering Anda ngemil di luar jam makan utama?')
     with c3:
-        smoke = st.selectbox('Merokok?', options=list(
+        smoke = st.selectbox('Merokok?', options=list(maps['SMOKE'].keys()), help='Apakah Anda seorang perokok?')
+        calc = st.selectbox('Konsumsi Alkohol', options=list(maps['CALC'].keys()), help='Seberapa sering Anda mengonsumsi alkohol?')
+
+with st.expander('**3. Tingkat Aktivitas & Lainnya** 🏃‍♀️📱', expanded=False):
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        ch2o = st.slider('Konsumsi Air Putih (liter/hari)', min_value=0.0, max_value=5.0, value=1.5, step=0.1, help='Berapa liter air putih yang Anda minum per hari?')
+    with c2:
+        faf = st.slider('Olahraga (kali/minggu)', min_value=0, max_value=7, value=3, step=1, help='Berapa kali Anda berolahraga dalam seminggu?')
+    with c3:
+        tue = st.slider('Waktu Gadget (jam/hari)', min_value=0.0, max_value=15.0, value=5.0, step=0.5, help='Berapa jam Anda menghabiskan waktu di depan gadget/layar per hari?')
+
+    st.markdown('---') # Garis pemisah
+    mtrans = st.selectbox('Moda Transportasi Utama', options=list(maps['MTRANS'].keys()), help='Bagaimana Anda bepergian sehari-hari?')
+    scc = st.selectbox('Mencatat Asupan Kalori?', options=list(maps['SCC'].keys()), help='Apakah Anda memiliki kebiasaan mencatat asupan kalori?')
+
+st.markdown('---') # Garis pemisah sebelum tombol
+predict_button = st.button('🔍 Dapatkan Prediksi Obesitas Anda!')
+
+# --- Logika Prediksi dan Tampilan Hasil ---
+if predict_button:
+    with st.spinner('Memproses data dan menghitung prediksi...'):
+        # Membangun dictionary raw data
+        raw_data = {
+            'Age': age, 'Height': height, 'Weight': weight,
+            'FCVC': fcvc, 'NCP': cp, 'CH2O': ch2o,
+            'FAF': faf, 'TUE': tue,
+            'Gender': gender_map[gender],
+            'family_history_with_overweight': maps['Riwayat Keluarga'][family_history],
+            'FAVC': maps['FAVC'][favc], 'CAEC': maps['CAEC'][caec],
+            'SMOKE': maps['SMOKE'][smoke], 'SCC': maps['SCC'][scc],
+            'CALC': maps['CALC'][calc], 'MTRANS': maps['MTRANS'][mtrans]
+        }
+        df = pd.DataFrame([raw_data])
+
+        # Scaling fitur numerik
+        df[NUM_COLS] = scaler.transform(df[NUM_COLS])
+
+        # One-Hot Encoding untuk fitur kategorikal
+        dummies = pd.get_dummies(df[CAT_COLS], drop_first=True)
+        
+        # Gabungkan kolom numerik dan dummy
+        X_processed = pd.concat([df[NUM_COLS], dummies], axis=1)
+
+        # --- Handling Missing Columns ---
+        # Ini adalah bagian KRITIS! Pastikan daftar kolom ini sesuai dengan kolom yang digunakan
+        # model Anda saat pelatihan (setelah scaling dan one-hot encoding).
+        # Anda bisa mendapatkan daftar kolom ini dari X_train.columns setelah preprocessing di notebook Anda.
+        expected_columns = [
+            'Age', 'Height', 'Weight', 'FCVC', 'NCP', 'CH2O', 'FAF', 'TUE',
+            'Gender_Male', # Jika 'Female' adalah base category
+            'family_history_with_overweight_yes',
+            'FAVC_yes',
+            'CAEC_Sometimes', 'CAEC_Frequently', 'CAEC_Always',
+            'SMOKE_yes',
+            'SCC_yes',
+            'CALC_Sometimes', 'CALC_Frequently', 'CALC_Always',
+            'MTRANS_Motorbike', 'MTRANS_Public_Transportation', 'MTRANS_Walking', 'MTRANS_Bike'
+            # Tambahkan semua kolom dummy yang mungkin dihasilkan dari CAT_COLS Anda
+            # dan pastikan urutannya sama persis dengan saat pelatihan!
+        ]
+        
+        # Reindex X_processed untuk memastikan semua kolom ada dan dalam urutan yang benar
+        # dan mengisi NaN dengan 0 untuk kolom dummy yang tidak muncul di input saat ini
+        X_final = X_processed.reindex(columns=expected_columns, fill_value=0)
+
+        # Lakukan prediksi
+        try:
+            prediction = model.predict(X_final)[0]
+            
+            # Tampilkan hasil kesimpulan saja
+            st.markdown(f"""
+            <div class="stSuccess">
+                Kategori Obesitas Anda: <strong>{CLASS_MAPPING_OBESITY.get(prediction, prediction)}</strong>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.balloons() # Efek balon saat sukses
+
+            st.info("""
+            *Catatan: Prediksi ini adalah hasil estimasi dari model machine learning. Untuk diagnosis dan saran medis yang akurat, penting untuk berkonsultasi dengan profesional kesehatan.*
+            """)
+
+        except Exception as e:
+            st.error(f"Terjadi kesalahan saat melakukan prediksi. Pastikan semua input sudah benar dan model Anda kompatibel: {e}")
+            st.warning("Periksa kembali data yang Anda masukkan dan coba lagi.")
+
+# --- Footer Aplikasi ---
+st.markdown("""
+<br><br>
+<hr style="border:1px solid #f0f2f6">
+<p style="text-align: center; color: #808080; font-size: 0.85em;">
+    Dibuat dengan ❤️ oleh Rendra Gunawan (A11.2022.14235). <br> Untuk tujuan edukasi dan demonstrasi.
+</p>
+""", unsafe_allow_html=True)
