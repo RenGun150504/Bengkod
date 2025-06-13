@@ -5,7 +5,6 @@ import joblib
 # Load model, scaler, and feature columns
 model = joblib.load('random_forest_obesity_model.pkl')
 scaler = joblib.load('scaler.pkl')
-feature_columns = joblib.load('feature_columns.pkl')
 
 # Map options for categorical inputs (display -> model value)
 gender_map = {'Laki-laki': 'Male', 'Perempuan': 'Female'}
