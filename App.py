@@ -58,7 +58,7 @@ st.markdown("""
         transition: all 0.3s ease;
         cursor: pointer;
         width: 100%;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        box_shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
     .stButton>button:hover {
         background-color: #2980b9; /* Biru lebih gelap saat hover */
@@ -104,18 +104,18 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- Fungsi untuk Memuat Model, Scaler, dan Feature Names ---
+# --- Fungsi untuk Memuat Model, Scaler, dan Feature Names (Diperbarui) ---
 @st.cache_resource
 def load_resources():
     try:
         model = joblib.load('model_akhir.pkl')
         scaler = joblib.load('scaler.pkl')
-        # MEMUAT DAFTAR FITUR YANG DIHARAPKAN MODEL
+        # MEMUAT DAFTAR FITUR YANG DIHARAPKAN MODEL dari file
         model_features = joblib.load('model_features.pkl')
         st.success("✅ Model, scaler, dan daftar fitur berhasil dimuat!")
         return model, scaler, model_features
-    except FileNotFoundError:
-        st.error("❌ Error: Pastikan file 'model_akhir.pkl', 'scaler.pkl', dan 'model_features.pkl' ada di direktori yang sama dengan aplikasi.")
+    except FileNotFoundError as e:
+        st.error(f"❌ Error: File sumber daya tidak ditemukan. Pastikan 'model_akhir.pkl', 'scaler.pkl', dan 'model_features.pkl' ada di direktori yang sama dengan aplikasi. Detail: {e}")
         st.stop()
     except Exception as e:
         st.error(f"❌ Error saat memuat sumber daya: {e}")
@@ -139,7 +139,6 @@ maps = {
 NUM_COLS = ['Age', 'Height', 'Weight', 'FCVC', 'NCP', 'CH2O', 'FAF', 'TUE']
 CAT_COLS = ['Gender', 'family_history_with_overweight', 'FAVC', 'CAEC', 'SMOKE', 'SCC', 'CALC', 'MTRANS']
 
-
 # --- Class Mapping untuk Hasil Prediksi ---
 CLASS_MAPPING_OBESITY = {
     'Normal_Weight': 'Berat Badan Normal',
@@ -160,7 +159,6 @@ st.markdown("---") # Garis pemisah
 # --- Area Input Form ---
 st.subheader('📥 Masukkan Data Anda')
 
-# Menggunakan kolom untuk tata letak yang lebih baik
 # Membuat section yang jelas
 st.markdown("<h3><small>Data Diri & Riwayat</small></h3>", unsafe_allow_html=True)
 with st.expander('Klik untuk Data Diri', expanded=True):
@@ -227,7 +225,7 @@ if predict_button:
             df[NUM_COLS] = scaler.transform(df[NUM_COLS])
 
             # One-Hot Encoding untuk fitur kategorikal
-            # Pastikan drop_first=True jika Anda menggunakan itu saat pelatihan!
+            # Penting: drop_first=True harus konsisten dengan pelatihan model Anda
             dummies = pd.get_dummies(df[CAT_COLS], drop_first=True)
             
             # Gabungkan kolom numerik dan dummy
@@ -236,7 +234,7 @@ if predict_button:
             # --- Kunci Perbaikan: Reindexasi Menggunakan MODEL_FEATURES yang Dimuat ---
             # Ini akan memastikan X_final memiliki semua kolom yang diharapkan model,
             # dalam urutan yang benar, dan mengisi 0 untuk kolom dummy yang tidak muncul
-            # di input saat ini.
+            # di input saat ini (misalnya, jika pengguna memilih Female, maka Gender_Male=0)
             X_final = X_processed.reindex(columns=MODEL_FEATURES, fill_value=0)
 
             # --- Debugging Tambahan (opsional, hapus setelah berhasil) ---
