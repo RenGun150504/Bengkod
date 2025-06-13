@@ -7,7 +7,7 @@ import joblib
 def load_resources():
     model = joblib.load('model_akhir.pkl')
     scaler = joblib.load('scaler.pkl')
-    return model, scaler, feature_cols
+    return model, scaler
 
 model, scaler, feature_columns = load_resources()
 
