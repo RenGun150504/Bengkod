@@ -104,24 +104,49 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- Fungsi untuk Memuat Model, Scaler, dan Feature Names (Diperbarui) ---
+# --- Fungsi untuk Memuat Model dan Scaler (dan mendapatkan feature names dari model) ---
 @st.cache_resource
 def load_resources():
     try:
         model = joblib.load('model_akhir.pkl')
         scaler = joblib.load('scaler.pkl')
-        # MEMUAT DAFTAR FITUR YANG DIHARAPKAN MODEL dari file
-        model_features = joblib.load('model_features.pkl')
-        st.success("✅ Model, scaler, dan daftar fitur berhasil dimuat!")
+        
+        # --- Kunci Perbaikan: Mengambil feature names langsung dari model ---
+        if hasattr(model, 'feature_names_in_'):
+            model_features = model.feature_names_in_.tolist()
+            st.success("✅ Model, scaler, dan daftar fitur berhasil dimuat dari model!")
+        else:
+            st.error("❌ Peringatan: Model tidak memiliki atribut 'feature_names_in_'. Prediksi mungkin tidak akurat jika urutan/nama fitur berbeda.")
+            st.warning("Direkomendasikan untuk menyimpan daftar fitur secara eksplisit dari Colab.")
+            # Sebagai fallback, jika model tidak memiliki feature_names_in_, kita perlu menebak.
+            # Ini sangat berisiko dan bisa menyebabkan error lagi.
+            # Berdasarkan notebook Anda, ada 23 fitur: 8 numerik + 15 one-hot encoded
+            # Anda HARUS mengganti ini dengan urutan yang BENAR dari fitur Anda
+            # jika model Anda tidak memiliki feature_names_in_.
+            # Contoh (ini masih placeholder, sesuaikan dengan output X_train.columns.tolist() terakhir):
+            model_features = [
+                'Age', 'Height', 'Weight', 'FCVC', 'NCP', 'CH2O', 'FAF', 'TUE',
+                'Gender_Male',
+                'family_history_with_overweight_yes',
+                'FAVC_yes',
+                'CAEC_Sometimes', 'CAEC_Frequently', 'CAEC_Always', 'CAEC_no', # Tambahkan semua kemungkinan dummy
+                'SMOKE_yes',
+                'SCC_yes',
+                'CALC_Sometimes', 'CALC_Frequently', 'CALC_Always', 'CALC_no', # Tambahkan semua kemungkinan dummy
+                'MTRANS_Motorbike', 'MTRANS_Public_Transportation', 'MTRANS_Walking', 'MTRANS_Bike', 'MTRANS_Automobile' # Tambahkan semua kemungkinan dummy
+            ]
+            st.info("Menggunakan daftar fitur default. Mohon pastikan ini sesuai dengan model Anda.")
+            
         return model, scaler, model_features
     except FileNotFoundError as e:
-        st.error(f"❌ Error: File sumber daya tidak ditemukan. Pastikan 'model_akhir.pkl', 'scaler.pkl', dan 'model_features.pkl' ada di direktori yang sama dengan aplikasi. Detail: {e}")
+        st.error(f"❌ Error: File sumber daya tidak ditemukan. Pastikan 'model_akhir.pkl' dan 'scaler.pkl' ada di direktori yang sama dengan aplikasi. Detail: {e}")
         st.stop()
     except Exception as e:
         st.error(f"❌ Error saat memuat sumber daya: {e}")
+        st.exception(e) # Menampilkan traceback lengkap di UI untuk debugging
         st.stop()
 
-model, scaler, MODEL_FEATURES = load_resources() # Sekarang MODEL_FEATURES dimuat secara dinamis
+model, scaler, MODEL_FEATURES = load_resources()
 
 # --- Pemetaan untuk Dropdown UI (Indonesia ke Bahasa Inggris untuk Model) ---
 gender_map = {'Laki-laki': 'Male', 'Perempuan': 'Female'}
@@ -231,13 +256,13 @@ if predict_button:
             # Gabungkan kolom numerik dan dummy
             X_processed = pd.concat([df[NUM_COLS], dummies], axis=1)
 
-            # --- Kunci Perbaikan: Reindexasi Menggunakan MODEL_FEATURES yang Dimuat ---
+            # --- Kunci Perbaikan: Reindexasi Menggunakan MODEL_FEATURES yang Dimuat atau Diambil ---
             # Ini akan memastikan X_final memiliki semua kolom yang diharapkan model,
             # dalam urutan yang benar, dan mengisi 0 untuk kolom dummy yang tidak muncul
-            # di input saat ini (misalnya, jika pengguna memilih Female, maka Gender_Male=0)
+            # di input saat ini.
             X_final = X_processed.reindex(columns=MODEL_FEATURES, fill_value=0)
 
-            # --- Debugging Tambahan (opsional, hapus setelah berhasil) ---
+            # --- Debugging Tambahan (opsional, bisa di-uncomment jika ada masalah) ---
             # st.write("Kolom X_final (setelah reindex):", X_final.columns.tolist())
             # st.write("Data X_final (siap prediksi):", X_final)
             # if set(MODEL_FEATURES) != set(X_final.columns.tolist()):
