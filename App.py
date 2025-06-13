@@ -2,9 +2,12 @@ import streamlit as st
 import pandas as pd
 import joblib
 
-# Load model, scaler, and feature columns
-model = joblib.load('model_akhir.pkl')
-scaler = joblib.load('scaler.pkl')
+try:
+    model = joblib.load('random_forest_obesity_model.pkl')
+    scaler = joblib.load('scaler.pkl')
+except FileNotFoundError:
+    st.error("File model atau scaler tidak ditemukan. Pastikan file 'random_forest_obesity_model.pkl' dan 'scaler.pkl' ada di direktori yang sama.")
+    st.stop()
 
 # Map options for categorical inputs (display -> model value)
 gender_map = {'Laki-laki': 'Male', 'Perempuan': 'Female'}
