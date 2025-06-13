@@ -36,7 +36,7 @@ col1, col2 = st.columns([2, 1])
 
 with col1:
     # Expanders for grouped inputs
-    with st.expander('1. Identitas', expanded=True):
+    with st.expander('1. Data Diri', expanded=True):
         c1, c2, c3 = st.columns(3)
         with c1:
             age = st.number_input('Usia (tahun)', min_value=0, value=25)
