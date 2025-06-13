@@ -104,22 +104,24 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- Fungsi untuk Memuat Model dan Scaler (menggunakan cache) ---
+# --- Fungsi untuk Memuat Model, Scaler, dan Feature Names ---
 @st.cache_resource
 def load_resources():
     try:
         model = joblib.load('model_akhir.pkl')
         scaler = joblib.load('scaler.pkl')
-        st.success("✅ Model dan scaler berhasil dimuat!") # Debugging success message
-        return model, scaler
+        # MEMUAT DAFTAR FITUR YANG DIHARAPKAN MODEL
+        model_features = joblib.load('model_features.pkl')
+        st.success("✅ Model, scaler, dan daftar fitur berhasil dimuat!")
+        return model, scaler, model_features
     except FileNotFoundError:
-        st.error("❌ Error: File 'model_akhir.pkl' atau 'scaler.pkl' tidak ditemukan. Pastikan file berada di direktori yang sama dengan aplikasi.")
-        st.stop() # Hentikan aplikasi jika file tidak ditemukan
+        st.error("❌ Error: Pastikan file 'model_akhir.pkl', 'scaler.pkl', dan 'model_features.pkl' ada di direktori yang sama dengan aplikasi.")
+        st.stop()
     except Exception as e:
-        st.error(f"❌ Error saat memuat model atau scaler: {e}")
+        st.error(f"❌ Error saat memuat sumber daya: {e}")
         st.stop()
 
-model, scaler = load_resources()
+model, scaler, MODEL_FEATURES = load_resources() # Sekarang MODEL_FEATURES dimuat secara dinamis
 
 # --- Pemetaan untuk Dropdown UI (Indonesia ke Bahasa Inggris untuk Model) ---
 gender_map = {'Laki-laki': 'Male', 'Perempuan': 'Female'}
@@ -136,24 +138,6 @@ maps = {
 # --- Daftar Kolom Numerik dan Kategorikal (sesuai data asli sebelum encoding) ---
 NUM_COLS = ['Age', 'Height', 'Weight', 'FCVC', 'NCP', 'CH2O', 'FAF', 'TUE']
 CAT_COLS = ['Gender', 'family_history_with_overweight', 'FAVC', 'CAEC', 'SMOKE', 'SCC', 'CALC', 'MTRANS']
-
-# --- PENTING: DAFTAR KOLOM YANG DIHARAPKAN MODEL ANDA SETELAH PRE-PROCESSING ---
-# GANTI INI DENGAN OUTPUT DARI `X_train.columns.tolist()` DARI NOTEBOOK ANDA
-MODEL_FEATURES = [
-    'Age', 'Height', 'Weight', 'FCVC', 'NCP', 'CH2O', 'FAF', 'TUE',
-    'Gender_Male',
-    'family_history_with_overweight_yes',
-    'FAVC_yes',
-    'CAEC_Sometimes', 'CAEC_Frequently', 'CAEC_Always',
-    'SMOKE_yes',
-    'SCC_yes',
-    'CALC_Sometimes', 'CALC_Frequently', 'CALC_Always',
-    'MTRANS_Motorbike', 'MTRANS_Public_Transportation', 'MTRANS_Walking', 'MTRANS_Bike'
-    # Pastikan ini adalah daftar lengkap dan urutan yang sama dengan fitur yang digunakan model Anda
-    # setelah OneHotEncoding dan scaling.
-    # Contoh: jika ada 'Gender_Female' dan Anda drop_first=True, maka hanya 'Gender_Male' yang mungkin ada.
-    # Perhatikan urutan kategori untuk CAEC, CALC, MTRANS dll.
-]
 
 
 # --- Class Mapping untuk Hasil Prediksi ---
@@ -177,51 +161,47 @@ st.markdown("---") # Garis pemisah
 st.subheader('📥 Masukkan Data Anda')
 
 # Menggunakan kolom untuk tata letak yang lebih baik
-col1, col2 = st.columns(2)
+# Membuat section yang jelas
+st.markdown("<h3><small>Data Diri & Riwayat</small></h3>", unsafe_allow_html=True)
+with st.expander('Klik untuk Data Diri', expanded=True):
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        age = st.number_input('Usia (tahun)', min_value=1, max_value=100, value=25, step=1, help='Usia Anda dalam tahun.')
+    with c2:
+        gender = st.selectbox('Jenis Kelamin', options=list(gender_map.keys()), help='Pilih jenis kelamin Anda.')
+    with c3:
+        family_history = st.selectbox('Riwayat Keluarga kelebihan berat badan', options=list(maps['Riwayat Keluarga'].keys()), help='Apakah ada riwayat obesitas dalam keluarga Anda?')
 
-with st.container(): # Group inputs for better visual separation
-    st.markdown("<h3><small>Data Diri & Riwayat</small></h3>", unsafe_allow_html=True)
-    with st.expander('Klik untuk Data Diri', expanded=True):
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            age = st.number_input('Usia (tahun)', min_value=1, max_value=100, value=25, step=1, help='Usia Anda dalam tahun.')
-        with c2:
-            gender = st.selectbox('Jenis Kelamin', options=list(gender_map.keys()), help='Pilih jenis kelamin Anda.')
-        with c3:
-            family_history = st.selectbox('Riwayat Keluarga kelebihan berat badan', options=list(maps['Riwayat Keluarga'].keys()), help='Apakah ada riwayat obesitas dalam keluarga Anda?')
+    c4, c5 = st.columns(2)
+    with c4:
+        height = st.number_input('Tinggi Badan (cm)', min_value=50.0, max_value=250.0, value=170.0, step=0.5, help='Tinggi badan Anda dalam centimeter.')
+    with c5:
+        weight = st.number_input('Berat Badan (kg)', min_value=10.0, max_value=250.0, value=70.0, step=0.5, help='Berat badan Anda dalam kilogram.')
 
-        c4, c5 = st.columns(2)
-        with c4:
-            height = st.number_input('Tinggi Badan (cm)', min_value=50.0, max_value=250.0, value=170.0, step=0.5, help='Tinggi badan Anda dalam centimeter.')
-        with c5:
-            weight = st.number_input('Berat Badan (kg)', min_value=10.0, max_value=250.0, value=70.0, step=0.5, help='Berat badan Anda dalam kilogram.')
+st.markdown("<h3><small>Kebiasaan Makan & Gaya Hidup</small></h3>", unsafe_allow_html=True)
+with st.expander('Klik untuk Kebiasaan', expanded=False):
+    c1, c2 = st.columns(2)
+    with c1:
+        favc = st.selectbox('Sering mengonsumsi makanan tinggi kalori?', options=list(maps['FAVC'].keys()), help='Seberapa sering Anda makan makanan tinggi kalori?')
+        fcvc = st.slider('Konsumsi Sayur (porsi/hari)', min_value=0.0, max_value=5.0, value=2.0, step=0.5, help='Berapa porsi sayuran yang Anda makan per hari?')
+    with c2:
+        cp = st.slider('Jumlah Makan Utama/hari', min_value=1, max_value=6, value=3, step=1, help='Berapa kali Anda makan makanan utama dalam sehari?')
+        caec = st.selectbox('Camilan di Luar Jam Makan', options=list(maps['CAEC'].keys()), help='Seberapa sering Anda ngemil di luar jam makan utama?')
+    
+    smoke = st.selectbox('Merokok?', options=list(maps['SMOKE'].keys()), help='Apakah Anda seorang perokok?')
+    calc = st.selectbox('Konsumsi Alkohol', options=list(maps['CALC'].keys()), help='Seberapa sering Anda mengonsumsi alkohol?')
 
-with st.container():
-    st.markdown("<h3><small>Kebiasaan Makan & Gaya Hidup</small></h3>", unsafe_allow_html=True)
-    with st.expander('Klik untuk Kebiasaan', expanded=False):
-        c1, c2 = st.columns(2)
-        with c1:
-            favc = st.selectbox('Sering mengonsumsi makanan tinggi kalori?', options=list(maps['FAVC'].keys()), help='Seberapa sering Anda makan makanan tinggi kalori?')
-            fcvc = st.slider('Konsumsi Sayur (porsi/hari)', min_value=0.0, max_value=5.0, value=2.0, step=0.5, help='Berapa porsi sayuran yang Anda makan per hari?')
-        with c2:
-            cp = st.slider('Jumlah Makan Utama/hari', min_value=1, max_value=6, value=3, step=1, help='Berapa kali Anda makan makanan utama dalam sehari?')
-            caec = st.selectbox('Camilan di Luar Jam Makan', options=list(maps['CAEC'].keys()), help='Seberapa sering Anda ngemil di luar jam makan utama?')
-        
-        smoke = st.selectbox('Merokok?', options=list(maps['SMOKE'].keys()), help='Apakah Anda seorang perokok?')
-        calc = st.selectbox('Konsumsi Alkohol', options=list(maps['CALC'].keys()), help='Seberapa sering Anda mengonsumsi alkohol?')
-
-with st.container():
-    st.markdown("<h3><small>Aktivitas & Lainnya</small></h3>", unsafe_allow_html=True)
-    with st.expander('Klik untuk Aktivitas & Lainnya', expanded=False):
-        c1, c2 = st.columns(2)
-        with c1:
-            ch2o = st.slider('Konsumsi Air Putih (liter/hari)', min_value=0.0, max_value=5.0, value=1.5, step=0.1, help='Berapa liter air putih yang Anda minum per hari?')
-            faf = st.slider('Olahraga (kali/minggu)', min_value=0, max_value=7, value=3, step=1, help='Berapa kali Anda berolahraga dalam seminggu?')
-        with c2:
-            tue = st.slider('Waktu Gadget (jam/hari)', min_value=0.0, max_value=15.0, value=5.0, step=0.5, help='Berapa jam Anda menghabiskan waktu di depan gadget/layar per hari?')
-            mtrans = st.selectbox('Moda Transportasi Utama', options=list(maps['MTRANS'].keys()), help='Bagaimana Anda bepergian sehari-hari?')
-        
-        scc = st.selectbox('Mencatat Asupan Kalori?', options=list(maps['SCC'].keys()), help='Apakah Anda memiliki kebiasaan mencatat asupan kalori?')
+st.markdown("<h3><small>Aktivitas & Lainnya</small></h3>", unsafe_allow_html=True)
+with st.expander('Klik untuk Aktivitas & Lainnya', expanded=False):
+    c1, c2 = st.columns(2)
+    with c1:
+        ch2o = st.slider('Konsumsi Air Putih (liter/hari)', min_value=0.0, max_value=5.0, value=1.5, step=0.1, help='Berapa liter air putih yang Anda minum per hari?')
+        faf = st.slider('Olahraga (kali/minggu)', min_value=0, max_value=7, value=3, step=1, help='Berapa kali Anda berolahraga dalam seminggu?')
+    with c2:
+        tue = st.slider('Waktu Gadget (jam/hari)', min_value=0.0, max_value=15.0, value=5.0, step=0.5, help='Berapa jam Anda menghabiskan waktu di depan gadget/layar per hari?')
+        mtrans = st.selectbox('Moda Transportasi Utama', options=list(maps['MTRANS'].keys()), help='Bagaimana Anda bepergian sehari-hari?')
+    
+    scc = st.selectbox('Mencatat Asupan Kalori?', options=list(maps['SCC'].keys()), help='Apakah Anda memiliki kebiasaan mencatat asupan kalori?')
 
 st.markdown("---") # Garis pemisah sebelum tombol
 predict_button = st.button('🚀 Prediksi Kategori Obesitas Anda')
@@ -247,20 +227,30 @@ if predict_button:
             df[NUM_COLS] = scaler.transform(df[NUM_COLS])
 
             # One-Hot Encoding untuk fitur kategorikal
+            # Pastikan drop_first=True jika Anda menggunakan itu saat pelatihan!
             dummies = pd.get_dummies(df[CAT_COLS], drop_first=True)
             
             # Gabungkan kolom numerik dan dummy
             X_processed = pd.concat([df[NUM_COLS], dummies], axis=1)
 
-            # --- Pastikan Semua Kolom Model Ada dan Urutannya Benar ---
-            # Reindex X_processed untuk memastikan semua kolom yang diharapkan model ada
-            # dan dalam urutan yang benar, mengisi NaN dengan 0 untuk kolom dummy yang tidak ada
+            # --- Kunci Perbaikan: Reindexasi Menggunakan MODEL_FEATURES yang Dimuat ---
+            # Ini akan memastikan X_final memiliki semua kolom yang diharapkan model,
+            # dalam urutan yang benar, dan mengisi 0 untuk kolom dummy yang tidak muncul
+            # di input saat ini.
             X_final = X_processed.reindex(columns=MODEL_FEATURES, fill_value=0)
 
-            # --- Debugging: Cek Kolom Sebelum Prediksi ---
-            # st.write("Kolom X_final:", X_final.columns.tolist())
-            # st.write("Data X_final (5 baris pertama):", X_final.head())
-            # st.write("Bentuk X_final:", X_final.shape)
+            # --- Debugging Tambahan (opsional, hapus setelah berhasil) ---
+            # st.write("Kolom X_final (setelah reindex):", X_final.columns.tolist())
+            # st.write("Data X_final (siap prediksi):", X_final)
+            # if set(MODEL_FEATURES) != set(X_final.columns.tolist()):
+            #    st.error("Ketidakcocokan kolom terdeteksi setelah reindex!")
+            #    missing_in_X_final = set(MODEL_FEATURES) - set(X_final.columns.tolist())
+            #    st.error(f"Kolom hilang di X_final: {list(missing_in_X_final)}")
+            #    extra_in_X_final = set(X_final.columns.tolist()) - set(MODEL_FEATURES)
+            #    st.error(f"Kolom ekstra di X_final: {list(extra_in_X_final)}")
+            # elif MODEL_FEATURES != X_final.columns.tolist():
+            #    st.warning("Urutan kolom berbeda! Mungkin tidak masalah untuk beberapa model tapi baiknya cocok.")
+
 
             # Lakukan prediksi
             prediction = model.predict(X_final)[0]
@@ -281,7 +271,7 @@ if predict_button:
         except Exception as e:
             st.error(f"❌ Terjadi kesalahan dalam proses prediksi: {e}")
             st.warning("Mohon periksa kembali semua data yang Anda masukkan dan pastikan model serta scaler dimuat dengan benar.")
-            # st.exception(e) # Ini bisa digunakan untuk menampilkan traceback lengkap untuk debugging lebih lanjut
+            st.exception(e) # Menampilkan traceback lengkap di UI untuk debugging
 
 # --- Footer Aplikasi ---
 st.markdown("""
